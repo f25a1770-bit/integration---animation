@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Definite Integration Calculator</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/MathJax.js?config=TeX-mml-chtml"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f5f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .calculator-card {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Math layout matching standard calculus notation */
+        .integral-container {
+            display: grid;
+            grid-template-columns: auto auto auto auto;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 30px 0;
+            font-size: 24px;
+        }
+
+        .bounds-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 90px;
+            align-items: center;
+        }
+
+        .integral-sign {
+            font-size: 70px;
+            font-family: "Times New Roman", Times, serif;
+            line-height: 1;
+            user-select: none;
+        }
+
+        input {
+            padding: 8px 12px;
+            border: 2px solid #e1e1e6;
+            border-radius: 6px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+
+        input:focus {
+            border-color: #0071e3;
+        }
+
+        .bound-input {
+            width: 60px;
+        }
+
+        .function-input {
+            width: 180px;
+            font-family: monospace;
+            text-align: left;
+        }
+
+        .dx-label {
+            font-family: "Times New Roman", Times, serif;
+            font-style: italic;
+            font-size: 28px;
+            margin-left: 5px;
+        }
+
+        .result-section {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            text-align: center;
+            min-height: 60px;
+        }
+
+        .result-text {
+            font-size: 22px;
+            color: #1d1d1f;
+            font-weight: 500;
+        }
+
+        .error-text {
+            color: #de350b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator-card">
+    <h2>Definite Integral Calculator</h2>
+    
+    <div class="integral-container">
+        <div class="bounds-container">
+            <input type="text" id="upperBound" class="bound-input" value="2" placeholder="b" title="Upper bound">
+            <input type="text" id="lowerBound" class="bound-input" value="0" placeholder="a" title="Lower bound">
+        </div>
+        
+        <div class="integral-sign">∫</div>
+        
+        <div>
+            <input type="text" id="functionInput" class="function-input" value="x^2" placeholder="e.g., x^2 + 2*x" title="Function f(x)">
+        </div>
+        
+        <div class="dx-label">dx</div>
+    </div>
+
+    <div class="result-section">
+        <div id="output" class="result-text">Calculating...</div>
+    </div>
+</div>
+
+<script>
+    const upperInput = document.getElementById('upperBound');
+    const lowerInput = document.getElementById('lowerBound');
+    const funcInput = document.getElementById('functionInput');
+    const outputDiv = document.getElementById('output');
+
+    // Simpson's Rule for Numerical Integration
+    function simpsonsRule(f, a, b, n = 1000) {
+        // Ensure n is even for Simpson's rule
+        if (n % 2 !== 0) n++; 
+        
+        const h = (b - a) / n;
+        let sum = f(a) + f(b);
+
+        for (let i = 1; i < n; i++) {
+            const x = a + i * h;
+            if (i % 2 === 0) {
+                sum += 2 * f(x);
+            } else {
+                sum += 4 * f(x);
+            }
+        }
+        return (h / 3) * sum;
+    }
+
+    function calculateIntegral() {
+        try {
+            // 1. Parse bounds (handles expressions like "pi", "sqrt(2)", etc., via math.js)
+            const a = math.evaluate(lowerInput.value);
+            const b = math.evaluate(upperInput.value);
+
+            if (typeof a !== 'number' || typeof b !== 'number' || isNaN(a) || isNaN(b)) {
+                throw new Error("Invalid bounds");
+            }
+
+            // 2. Parse the function string and compile it
+            const compiledExpr = math.compile(funcInput.value);
+            
+            // Create a simple JS function Wrapper for math.js evaluations
+            const f = (xVal) => compiledExpr.evaluate({ x: xVal });
+
+            // 3. Run the numerical approximation
+            const result = simpsonsRule(f, a, b);
+
+            if (isNaN(result) || !isFinite(result)) {
+                throw new Error("Result is undefined or infinite in this range.");
+            }
+
+            // 4. Output the result cleanly (rounded to 5 decimal places)
+            outputDiv.className = "result-text";
+            outputDiv.innerHTML = `= ${parseFloat(result.toFixed(5))}`;
+
+        } catch (error) {
+            outputDiv.className = "error-text";
+            outputDiv.innerHTML = "Error: Please check your inputs. Ensure the function uses 'x' as the variable.";
+        }
+    }
+
+    // Attach event listeners for real-time calculations as you type
+    [upperInput, lowerInput, funcInput].forEach(input => {
+        input.addEventListener('input', calculateIntegral);
+    });
+
+    // Initial run on load
+    window.addEventListener('DOMContentLoaded', calculateIntegral);
+</script>
+
+</body>
+</html>
